@@ -1,65 +1,66 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, session
+from flask import Flask, render_template, request, session
 import pandas as pd
 import os
 from utils.pseudonymization import apply_pseudoanonymization
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Needed for session
+app.secret_key = 'your_secret_key'
 UPLOAD_FOLDER = 'uploads'
-PROCESSED_FOLDER = 'processed'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    original_table = None
+    pseudo_table = None
+    columns = None
+    selected_technique = session.get('technique')
+    selected_columns = []
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    file = request.files['file']
-    technique = request.form.get('technique')
+    if request.method == 'POST':
+        if 'file' in request.files:
+            # First form: Upload file + select technique
+            file = request.files['file']
+            technique = request.form.get('technique')
+            if not file or not technique:
+                return "Missing file or technique."
 
-    if not file or not technique:
-        return "Please upload a file and select technique."
+            filename = file.filename
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
 
-    filename = file.filename
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
+            session['filepath'] = filepath
+            session['technique'] = technique
 
-    df = pd.read_csv(filepath)
-    session['filepath'] = filepath
-    session['technique'] = technique
+            df = pd.read_csv(filepath)
+            columns = list(df.columns)
 
-    return render_template('select_columns.html', columns=list(df.columns))
+        elif 'columns' in request.form:
+            # Second form: Process selected columns
+            filepath = session.get('filepath')
+            technique = session.get('technique')
+            selected_columns = request.form.getlist('columns')
 
-@app.route('/process', methods=['POST'])
-def process():
-    selected_columns = request.form.getlist('columns')
+            if not filepath or not technique:
+                return "Session expired. Please re-upload the file."
 
-    filepath = session.get('filepath')
-    technique = session.get('technique')
+            df = pd.read_csv(filepath)
+            pseudo_df = df.copy()
 
-    df = pd.read_csv(filepath)
-    pseudo_df = df.copy()
+            for col in selected_columns:
+                pseudo_df[col] = pseudo_df[col].apply(lambda x: apply_pseudoanonymization(x, technique))
 
-    if selected_columns:
-        for col in selected_columns:
-            pseudo_df[col] = pseudo_df[col].apply(lambda x: apply_pseudoanonymization(x, technique))
+            columns = list(df.columns)
+            original_table = df.to_html(classes='table table-bordered', index=False)
+            pseudo_table = pseudo_df.to_html(classes='table table-bordered', index=False)
 
-    output_path = os.path.join(app.config['PROCESSED_FOLDER'], 'pseudo_' + os.path.basename(filepath))
-    pseudo_df.to_csv(output_path, index=False)
-
-    return render_template('result.html', 
-                           original=df.to_html(classes='table table-bordered'), 
-                           pseudo=pseudo_df.to_html(classes='table table-bordered'),
-                           download_link=output_path)
-
-@app.route('/download/<path:filename>', methods=['GET'])
-def download(filename):
-    return send_file(filename, as_attachment=True)
+    return render_template(
+        'index.html',
+        columns=columns,
+        original_table=original_table,
+        pseudo_table=pseudo_table,
+        selected_technique=selected_technique,
+        selected_columns=selected_columns
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)

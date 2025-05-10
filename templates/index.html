@@ -1,29 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Upload Data</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    />
-  </head>
-  <body class="p-4">
-    <h2>Upload Data</h2>
-    <form action="/upload" method="POST" enctype="multipart/form-data">
-      <div class="mb-3">
-        <input type="file" name="file" class="form-control" required />
-      </div>
-      <div class="mb-3">
-        <label>Select Pseudoanonymization Technique:</label>
-        <select name="technique" class="form-control" required>
-          <option value="AES-SIV">ALIIAS - AES-SIV Encryption</option>
-          <option value="HMAC-MD5">CRATE - HMAC-MD5 Hash</option>
-          <option value="SHA256">EUPID - SHA-256 Hash</option>
-          <option value="Random String">gPAS - Random String</option>
+<head>
+    <meta charset="UTF-8">
+    <title>Pseudoanonymization Platform (One Page)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .scroll-table {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <h2>BioCloak: Pseudoanonymization Tools Algorithm Study</h2>
+
+    <!-- Upload Form -->
+    <form method="POST" enctype="multipart/form-data" class="mb-5">
+        <div class="mb-3">
+            <input type="file" name="file" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <select name="technique" class="form-control" required>
+            <option value="AES-SIV" {% if selected_technique == "AES-SIV" %}selected{% endif %}>ALIIAS - AES-SIV Encryption</option>
+            <option value="HMAC-MD5" {% if selected_technique == "HMAC-MD5" %}selected{% endif %}>CRATE - HMAC-MD5 Hash</option>
+            <option value="SHA256" {% if selected_technique == "SHA256" %}selected{% endif %}>EUPID - SHA-256 Hash</option>
+            <option value="Random String" {% if selected_technique == "Random String" %}selected{% endif %}>gPAS - Random String</option>
+            <option value="Encrypted Counter" {% if selected_technique == "Encrypted Counter" %}selected{% endif %}>Mainzelliste - Encrypted Counter</option>
+            <option value="SHA2-256" {% if selected_technique == "SHA2-256" %}selected{% endif %}>OpenPseudonymiser - SHA2-256</option>
+            <option value="Simple Counter" {% if selected_technique == "Simple Counter" %}selected{% endif %}>OPT - Simple Counter</option>
+            <option value="AES Encryption" {% if selected_technique == "AES Encryption" %}selected{% endif %}>PID-Generator - AES Encryption</option>
+            <option value="AES Encryption" {% if selected_technique == "AES Encryption" %}selected{% endif %}>Pseudonymization Service - AES Encryption</option>
+            <option value="Encrypted Hash" {% if selected_technique == "Encrypted Hash" %}selected{% endif %}>SPIDER - Encrypted Hash</option>
         </select>
-      </div>
-      <button class="btn btn-primary">Next</button>
+        
+        </div>
+        <button type="submit" class="btn btn-primary">Upload & Select Columns</button>
     </form>
-  </body>
+
+    {% if columns %}
+    <!-- Column Selection -->
+    <form method="POST" class="mb-5">
+        <div class="mb-3">
+            <label>Select Columns to Pseudoanonymize:</label><br>
+            {% for col in columns %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="columns" value="{{ col }}" id="{{ col }}"
+                    {% if selected_columns and col in selected_columns %}checked{% endif %}>
+                  
+                    <label class="form-check-label" for="{{ col }}">{{ col }}</label>
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-success">Pseudoanonymize</button>
+    </form>
+    {% endif %}
+
+    {% if original_table and pseudo_table %}
+    <!-- Tabs for Original and Pseudo Table -->
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="original-tab" data-bs-toggle="tab" data-bs-target="#original" type="button" role="tab">Original Data</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pseudo-tab" data-bs-toggle="tab" data-bs-target="#pseudo" type="button" role="tab">Pseudoanonymized Data</button>
+      </li>
+    </ul>
+    <div class="tab-content" id="myTabContent">
+      <div class="tab-pane fade show active p-3 scroll-table" id="original" role="tabpanel">
+        {{ original_table|safe }}
+      </div>
+      <div class="tab-pane fade p-3 scroll-table" id="pseudo" role="tabpanel">
+        {{ pseudo_table|safe }}
+      </div>
+    </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
 </html>
